@@ -36,13 +36,17 @@ jobs:
 
       - name: Build with Gradle
         run: |
+          set -e
           if [ -d "android" ] && [ -f "android/build.gradle.kts" ]; then
-            echo "Building from android/ subdirectory..."
+            echo "::group::Building Android Project inside android/ folder"
             cd android
             gradle assembleDebug --no-daemon --stacktrace || ./gradlew assembleDebug --no-daemon --stacktrace
+            cd ..
+            echo "::endgroup::"
           else
-            echo "Building from root directory..."
+            echo "::group::Building Android Project inside root folder"
             gradle assembleDebug --no-daemon --stacktrace || ./gradlew assembleDebug --no-daemon --stacktrace
+            echo "::endgroup::"
           fi
 
       - name: Locate Generated APK
