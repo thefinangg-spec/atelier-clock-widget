@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -50,9 +51,11 @@ class ClockGlanceWidget : GlanceAppWidget() {
             val prefs = currentState<androidx.datastore.preferences.core.Preferences>()
             val config = ClockCustomization.fromPreferences(prefs)
             val size = LocalSize.current
+            val widthVal = size.width.value
+            val heightVal = size.height.value
             val sizeCategory = when {
-                size.width >= 200.dp && size.height >= 200.dp -> WidgetSizeCategory.LARGE
-                size.width >= 200.dp -> WidgetSizeCategory.MEDIUM
+                widthVal >= 200f && heightVal >= 200f -> WidgetSizeCategory.LARGE
+                widthVal >= 200f -> WidgetSizeCategory.MEDIUM
                 else -> WidgetSizeCategory.SMALL
             }
 
@@ -76,6 +79,9 @@ class ClockGlanceWidget : GlanceAppWidget() {
         val openClockIntent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
+        val mainActivityIntent = Intent(context, com.atelier.clockwidget.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
 
         val paddingDp = when (config.padding) {
             "compact" -> 10.dp
@@ -89,7 +95,7 @@ class ClockGlanceWidget : GlanceAppWidget() {
                 .cornerRadius(config.cornerRadiusDp.dp)
                 .background(config.resolveBackgroundColor())
                 .padding(paddingDp)
-                .clickable(actionStartActivity(openClockIntent)),
+                .clickable(actionStartActivity<com.atelier.clockwidget.MainActivity>()),
             contentAlignment = config.resolveGlanceAlignment()
         ) {
             when (config.style) {
@@ -134,7 +140,7 @@ class ClockGlanceWidget : GlanceAppWidget() {
                     style = TextStyle(
                         color = ColorProvider(config.accentColor),
                         fontSize = timeFontSize,
-                        fontWeight = FontWeight.Light
+                        fontWeight = FontWeight.Normal
                     )
                 )
                 if (amPmString.isNotEmpty()) {
@@ -473,7 +479,7 @@ class ClockGlanceWidget : GlanceAppWidget() {
                     style = TextStyle(
                         color = ColorProvider(config.subtleTextColor),
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Light
+                        fontWeight = FontWeight.Normal
                     )
                 )
             }
