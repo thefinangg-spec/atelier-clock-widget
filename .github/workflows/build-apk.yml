@@ -1,0 +1,64 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant Execute Permission on Gradle Wrapper
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+          fi
+          if [ -f "./android/gradlew" ]; then
+            chmod +x ./android/gradlew
+          fi
+
+      - name: Build with Gradle
+        run: |
+          if [ -d "android" ] && [ -f "android/build.gradle.kts" ]; then
+            echo "Building from android/ subdirectory..."
+            cd android
+            gradle assembleDebug --no-daemon --stacktrace || ./gradlew assembleDebug --no-daemon --stacktrace
+          else
+            echo "Building from root directory..."
+            gradle assembleDebug --no-daemon --stacktrace || ./gradlew assembleDebug --no-daemon --stacktrace
+          fi
+
+      - name: Locate Generated APK
+        id: find_apk
+        run: |
+          APK_PATH=$(find . -type f -name "*debug*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "Error: No debug APK found after build!"
+            exit 1
+          fi
+          echo "Found APK at: $APK_PATH"
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atelier-clock-debug-apk
+          path: ${{ steps.find_apk.outputs.apk_path }}
+          retention-days: 14
