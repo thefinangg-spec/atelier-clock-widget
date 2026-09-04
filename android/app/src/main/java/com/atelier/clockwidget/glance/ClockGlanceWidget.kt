@@ -49,7 +49,22 @@ class ClockGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
             val prefs = currentState<androidx.datastore.preferences.core.Preferences>()
-            val config = ClockCustomization.fromPreferences(prefs)
+            // If the widget has explicit preferences set, use them; otherwise, fall back to global saved config
+            val styleKey = prefs[com.atelier.clockwidget.data.ClockPreferencesKeys.STYLE_KEY]
+            val config = if (styleKey != null) {
+                ClockCustomization.fromPreferences(prefs)
+            } else {
+                // Read from global preferences synchronously
+                var loadedConfig = ClockCustomization()
+                try {
+                    kotlinx.coroutines.runBlocking {
+                        loadedConfig = com.atelier.clockwidget.data.ClockPreferencesStore.loadDefaultConfig(context)
+                    }
+                } catch (e: Exception) {
+                    loadedConfig = ClockCustomization()
+                }
+                loadedConfig
+            }
             val size = LocalSize.current
             val widthVal = size.width.value
             val heightVal = size.height.value

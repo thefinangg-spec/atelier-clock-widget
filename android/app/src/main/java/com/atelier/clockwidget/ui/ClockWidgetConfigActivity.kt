@@ -32,8 +32,11 @@ class ClockWidgetConfigActivity : ComponentActivity() {
             return
         }
 
-        // Apply configuration and complete setup
-        applyConfigurationAndFinish(ClockCustomization())
+        // Apply configuration from user's customized default preferences and complete setup
+        lifecycleScope.launch {
+            val savedConfig = com.atelier.clockwidget.data.ClockPreferencesStore.loadDefaultConfig(this@ClockWidgetConfigActivity)
+            applyConfigurationAndFinish(savedConfig)
+        }
     }
 
     private fun applyConfigurationAndFinish(config: ClockCustomization) {
