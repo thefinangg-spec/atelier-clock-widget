@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Atelier Clock</string>
+    <string name="clock_widget_name">Atelier Clock</string>
+    <string name="clock_widget_description">Artisanal clock widget with 6 distinct aesthetic layouts and rich customization.</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "name": "Atelier Clock - Android Glance Widget",
+  "description": "High-craft Android Clock App and Glance Home Screen Widget with 6 distinct visual styles, deep customization, lifecycle-aware architecture, and complete Android Studio project files.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
