@@ -43,6 +43,7 @@ import com.atelier.clockwidget.data.ClockPreferencesStore
 import com.atelier.clockwidget.glance.ClockGlanceWidgetReceiver
 import com.atelier.clockwidget.model.ClockCustomization
 import com.atelier.clockwidget.model.ClockStyle
+import com.atelier.clockwidget.model.WidgetSizeCategory
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -588,6 +589,7 @@ fun StudioTabContent(
     onResetDefaults: () -> Unit
 ) {
     val scrollState = rememberScrollState()
+    var previewSizeCategory by remember { mutableStateOf(WidgetSizeCategory.MEDIUM) }
 
     Column(
         modifier = Modifier
@@ -595,39 +597,73 @@ fun StudioTabContent(
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        // Section: Simulated Home Screen Live Canvas with Wallpaper
+        // Section: Simulated Home Screen Live Canvas with Wallpaper & Size Selector
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "LIVE HOME SCREEN PREVIEW",
+                text = "HOME SCREEN PREVIEW",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.5.sp,
                 color = Color(0xFF71717A)
             )
-            Text(
-                text = "${selectedWallpaper.name} Wallpaper",
-                fontSize = 11.sp,
-                color = Color(0xFFA1A1AA)
-            )
+
+            // Size Selector Toggle Bar
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF27272A))
+                    .padding(2.dp)
+            ) {
+                listOf(
+                    WidgetSizeCategory.SMALL to "2×2",
+                    WidgetSizeCategory.MEDIUM to "4×2",
+                    WidgetSizeCategory.LARGE to "4×4"
+                ).forEach { (size, label) ->
+                    val isSelected = previewSizeCategory == size
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) Color(0xFF3F3F46) else Color.Transparent)
+                            .clickable { previewSizeCategory = size }
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 10.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else Color(0xFFA1A1AA)
+                        )
+                    }
+                }
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
+
+        val canvasHeight = when (previewSizeCategory) {
+            WidgetSizeCategory.SMALL -> 190.dp
+            WidgetSizeCategory.MEDIUM -> 220.dp
+            WidgetSizeCategory.LARGE -> 290.dp
+        }
 
         // Phone Canvas Box with Wallpaper
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(230.dp)
+                .height(canvasHeight)
                 .clip(RoundedCornerShape(28.dp))
                 .background(selectedWallpaper.bgBrush)
                 .border(1.dp, Color(0xFF27272A), RoundedCornerShape(28.dp))
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
-            WidgetLivePreviewCard(config = config)
+            WidgetLivePreviewCard(
+                config = config,
+                sizeCategory = previewSizeCategory
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -1084,6 +1120,7 @@ fun GalleryTabContent(
     onApplyStyle: (String) -> Unit
 ) {
     val scrollState = rememberScrollState()
+    var gallerySizeCategory by remember { mutableStateOf(WidgetSizeCategory.MEDIUM) }
 
     Column(
         modifier = Modifier
@@ -1091,18 +1128,56 @@ fun GalleryTabContent(
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        Text(
-            text = "CURATED CLOCK LAYOUTS",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.5.sp,
-            color = Color(0xFF71717A)
-        )
-        Text(
-            text = "Tap Customize to adjust, or Apply to update your home screen directly.",
-            fontSize = 12.sp,
-            color = Color(0xFFA1A1AA)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "CURATED CLOCK LAYOUTS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.5.sp,
+                    color = Color(0xFF71717A)
+                )
+                Text(
+                    text = "6 Bespoke styles with optical typography",
+                    fontSize = 12.sp,
+                    color = Color(0xFFA1A1AA)
+                )
+            }
+
+            // Size Selector Toggle Bar
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF27272A))
+                    .padding(2.dp)
+            ) {
+                listOf(
+                    WidgetSizeCategory.SMALL to "2×2",
+                    WidgetSizeCategory.MEDIUM to "4×2",
+                    WidgetSizeCategory.LARGE to "4×4"
+                ).forEach { (size, label) ->
+                    val isSelected = gallerySizeCategory == size
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) Color(0xFF3F3F46) else Color.Transparent)
+                            .clickable { gallerySizeCategory = size }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 10.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else Color(0xFFA1A1AA)
+                        )
+                    }
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         STYLE_PRESETS.forEach { preset ->
@@ -1174,16 +1249,27 @@ fun GalleryTabContent(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Preview
+                    val cardPreviewHeight = when (gallerySizeCategory) {
+                        WidgetSizeCategory.SMALL -> 160.dp
+                        WidgetSizeCategory.MEDIUM -> 175.dp
+                        WidgetSizeCategory.LARGE -> 260.dp
+                    }
+
+                    // Live Preview Container on sleek dark surface
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(140.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF09090B)),
+                            .height(cardPreviewHeight)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF0D0D10))
+                            .border(1.dp, Color(0xFF232328), RoundedCornerShape(18.dp))
+                            .padding(12.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        WidgetLivePreviewCard(config = presetConfig)
+                        WidgetLivePreviewCard(
+                            config = presetConfig,
+                            sizeCategory = gallerySizeCategory
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1439,8 +1525,16 @@ fun SettingToggleRow(
 }
 
 @Composable
-fun WidgetLivePreviewCard(config: ClockCustomization) {
+fun WidgetLivePreviewCard(
+    config: ClockCustomization,
+    modifier: Modifier = Modifier,
+    sizeCategory: WidgetSizeCategory = WidgetSizeCategory.MEDIUM
+) {
     val date = remember { Date() }
+    val hourPattern = if (config.is24Hour) "HH" else "h"
+    val hours = SimpleDateFormat(hourPattern, Locale.getDefault()).format(date)
+    val minutes = SimpleDateFormat("mm", Locale.getDefault()).format(date)
+    val seconds = SimpleDateFormat("ss", Locale.getDefault()).format(date)
     val timePattern = if (config.is24Hour) {
         if (config.showSeconds) "HH:mm:ss" else "HH:mm"
     } else {
@@ -1449,7 +1543,13 @@ fun WidgetLivePreviewCard(config: ClockCustomization) {
     val timeString = SimpleDateFormat(timePattern, Locale.getDefault()).format(date)
     val amPmString = if (!config.is24Hour) SimpleDateFormat("a", Locale.getDefault()).format(date).uppercase() else ""
     val weekdayString = SimpleDateFormat("EEEE", Locale.getDefault()).format(date)
+    val shortWeekday = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
     val dateString = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(date)
+    val shortMonthDay = SimpleDateFormat("MMM d", Locale.getDefault()).format(date).uppercase()
+    val dayNum = SimpleDateFormat("dd", Locale.getDefault()).format(date)
+    val shortMonth = SimpleDateFormat("MMM", Locale.getDefault()).format(date).uppercase()
+    val isoDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
+    val year = SimpleDateFormat("yyyy", Locale.getDefault()).format(date)
 
     // Font family mapping
     val chosenFontFamily = when (config.fontStyle) {
@@ -1466,224 +1566,899 @@ fun WidgetLivePreviewCard(config: ClockCustomization) {
     }
 
     // Text size scaling
-    val fontScaleFactor = when (config.textSize) {
+    val fontScale = when (config.textSize) {
         "compact" -> 0.85f
         "large" -> 1.15f
         else -> 1.0f
     }
 
-    // Background resolution
-    val bgAlpha = (config.backgroundOpacityPercent.coerceIn(5, 100) / 100f)
-    val cardBgColor = when (config.backgroundStyle) {
-        "transparent" -> Color.Transparent
-        "solid" -> Color(0xFF18181B).copy(alpha = bgAlpha)
-        else -> Color(0xFF27272A).copy(alpha = bgAlpha)
+    val accentColor = Color(config.accentColorHex)
+    val subtleColor = Color(0xFFA1A1AA)
+    val mutedColor = Color(0xFF71717A)
+
+    val innerPadding = when (config.padding) {
+        "compact" -> 10.dp
+        "generous" -> 18.dp
+        else -> 14.dp
     }
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp),
-        shape = RoundedCornerShape(config.cornerRadiusDp.dp),
-        color = cardBgColor,
-        border = if (config.backgroundStyle == "transparent") null
-        else androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+    val bgAlpha = (config.backgroundOpacityPercent.coerceIn(5, 100) / 100f)
+    val (bgModifier, borderStroke) = when (config.backgroundStyle) {
+        "transparent" -> Pair(
+            Modifier.background(Color.Transparent),
+            null
+        )
+        "solid" -> Pair(
+            Modifier.background(Color(0xFF18181B).copy(alpha = bgAlpha)),
+            androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+        )
+        else -> when (config.style) {
+            ClockStyle.EDITORIAL -> Pair(
+                Modifier.background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF221F1D).copy(alpha = bgAlpha),
+                            Color(0xFF12100F).copy(alpha = bgAlpha)
+                        )
+                    )
+                ),
+                androidx.compose.foundation.BorderStroke(1.2.dp, Color.White.copy(alpha = 0.18f))
+            )
+            ClockStyle.TERMINAL -> Pair(
+                Modifier.background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF0C120F).copy(alpha = bgAlpha),
+                            Color(0xFF040806).copy(alpha = bgAlpha)
+                        )
+                    )
+                ),
+                androidx.compose.foundation.BorderStroke(1.2.dp, Color(0x5510B981))
+            )
+            ClockStyle.DIGITAL -> Pair(
+                Modifier.background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF0B1326).copy(alpha = bgAlpha),
+                            Color(0xFF030712).copy(alpha = bgAlpha)
+                        )
+                    )
+                ),
+                androidx.compose.foundation.BorderStroke(1.2.dp, Color(0x4538BDF8))
+            )
+            ClockStyle.TYPOGRAPHIC -> Pair(
+                Modifier.background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF281C15).copy(alpha = bgAlpha),
+                            Color(0xFF0E0B09).copy(alpha = bgAlpha)
+                        )
+                    )
+                ),
+                androidx.compose.foundation.BorderStroke(1.2.dp, Color(0x40F97316))
+            )
+            ClockStyle.GLASS -> Pair(
+                Modifier.background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0x80454A59).copy(alpha = bgAlpha * 0.85f),
+                            Color(0x60262933).copy(alpha = bgAlpha * 0.85f),
+                            Color(0x95181920).copy(alpha = bgAlpha)
+                        )
+                    )
+                ),
+                androidx.compose.foundation.BorderStroke(1.5.dp, Color.White.copy(alpha = 0.35f))
+            )
+            ClockStyle.MINIMAL -> Pair(
+                Modifier.background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF1C1C20).copy(alpha = bgAlpha),
+                            Color(0xFF0C0C0E).copy(alpha = bgAlpha)
+                        )
+                    )
+                ),
+                androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+            )
+        }
+    }
+
+    val cardShape = RoundedCornerShape(config.cornerRadiusDp.dp)
+
+    val widgetModifier = when (sizeCategory) {
+        WidgetSizeCategory.SMALL -> modifier.size(155.dp)
+        WidgetSizeCategory.MEDIUM -> modifier.fillMaxWidth().height(155.dp)
+        WidgetSizeCategory.LARGE -> modifier.fillMaxWidth().height(240.dp)
+    }
+
+    Box(
+        modifier = widgetModifier
+            .clip(cardShape)
+            .then(bgModifier)
+            .then(if (borderStroke != null) Modifier.border(borderStroke.width, borderStroke.brush, cardShape) else Modifier)
+            .padding(innerPadding)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(18.dp),
-            contentAlignment = when (config.alignment) {
-                "center" -> Alignment.Center
-                "right" -> Alignment.CenterEnd
-                else -> Alignment.CenterStart
-            }
-        ) {
-            when (config.style) {
-                ClockStyle.MINIMAL -> {
-                    Column(horizontalAlignment = horizontalAlign) {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                text = timeString,
-                                fontSize = (48 * fontScaleFactor).sp,
-                                fontWeight = FontWeight.Light,
-                                fontFamily = chosenFontFamily,
-                                color = Color(config.accentColorHex)
-                            )
-                            if (amPmString.isNotEmpty()) {
-                                Spacer(modifier = Modifier.width(6.dp))
+        when (config.style) {
+            ClockStyle.MINIMAL -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = horizontalAlign
+                ) {
+                    when (sizeCategory) {
+                        WidgetSizeCategory.SMALL -> {
+                            Column(horizontalAlignment = horizontalAlign) {
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        text = "$hours:$minutes",
+                                        fontSize = (30 * fontScale).sp,
+                                        fontWeight = FontWeight.Light,
+                                        fontFamily = chosenFontFamily,
+                                        color = accentColor
+                                    )
+                                    if (config.showSeconds) {
+                                        Text(
+                                            text = ":$seconds",
+                                            fontSize = (13 * fontScale).sp,
+                                            fontFamily = chosenFontFamily,
+                                            color = subtleColor
+                                        )
+                                    }
+                                }
+                                if (amPmString.isNotEmpty()) {
+                                    Text(
+                                        text = amPmString,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = subtleColor
+                                    )
+                                }
+                            }
+                            if (config.showDate || config.showWeekday) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(Color(0x30FFFFFF))
+                                )
                                 Text(
-                                    text = amPmString,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = chosenFontFamily,
-                                    color = Color(0xFF71717A)
+                                    text = "$shortWeekday / $shortMonthDay",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = 1.sp,
+                                    color = subtleColor
                                 )
                             }
                         }
-                        if (config.showWeekday || config.showDate) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            val parts = mutableListOf<String>()
-                            if (config.showWeekday) parts.add(weekdayString.uppercase())
-                            if (config.showDate) parts.add(dateString.uppercase())
-                            Text(
-                                text = parts.joinToString(" • "),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                fontFamily = chosenFontFamily,
-                                letterSpacing = 1.sp,
-                                color = Color(0xFFA1A1AA)
-                            )
+                        WidgetSizeCategory.MEDIUM -> {
+                            Column(horizontalAlignment = horizontalAlign) {
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        text = "$hours:$minutes",
+                                        fontSize = (44 * fontScale).sp,
+                                        fontWeight = FontWeight.Light,
+                                        fontFamily = chosenFontFamily,
+                                        color = accentColor
+                                    )
+                                    if (config.showSeconds) {
+                                        Text(
+                                            text = ":$seconds",
+                                            fontSize = (17 * fontScale).sp,
+                                            fontFamily = chosenFontFamily,
+                                            color = subtleColor
+                                        )
+                                    }
+                                    if (amPmString.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = amPmString,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = subtleColor
+                                        )
+                                    }
+                                }
+                            }
+                            if (config.showDate || config.showWeekday) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(Color(0x30FFFFFF))
+                                )
+                                Text(
+                                    text = "$shortWeekday / $shortMonthDay",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = 1.sp,
+                                    color = subtleColor
+                                )
+                            }
+                        }
+                        WidgetSizeCategory.LARGE -> {
+                            Column(horizontalAlignment = horizontalAlign) {
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        text = "$hours:$minutes",
+                                        fontSize = (56 * fontScale).sp,
+                                        fontWeight = FontWeight.Light,
+                                        fontFamily = chosenFontFamily,
+                                        color = accentColor
+                                    )
+                                    if (config.showSeconds) {
+                                        Text(
+                                            text = ":$seconds",
+                                            fontSize = (22 * fontScale).sp,
+                                            fontFamily = chosenFontFamily,
+                                            color = subtleColor
+                                        )
+                                    }
+                                    if (amPmString.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = amPmString,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = subtleColor
+                                        )
+                                    }
+                                }
+                            }
+                            if (config.showDate || config.showWeekday) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(Color(0x30FFFFFF))
+                                )
+                                Text(
+                                    text = "$weekdayString / $dateString".uppercase(),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = 1.sp,
+                                    color = subtleColor
+                                )
+                            }
                         }
                     }
                 }
-                ClockStyle.EDITORIAL -> {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = timeString,
-                            fontSize = (46 * fontScaleFactor).sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = Color(config.accentColorHex)
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Column(horizontalAlignment = Alignment.End) {
-                            if (config.showWeekday) {
+            }
+
+            ClockStyle.EDITORIAL -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    when (sizeCategory) {
+                        WidgetSizeCategory.SMALL -> {
+                            Column(horizontalAlignment = horizontalAlign) {
                                 Text(
-                                    text = weekdayString,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFA1A1AA)
+                                    text = hours,
+                                    fontSize = (38 * fontScale).sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Serif,
+                                    color = accentColor,
+                                    lineHeight = (38 * fontScale).sp
+                                )
+                                Text(
+                                    text = minutes,
+                                    fontSize = (38 * fontScale).sp,
+                                    fontWeight = FontWeight.Normal,
+                                    fontFamily = FontFamily.Serif,
+                                    color = subtleColor,
+                                    lineHeight = (38 * fontScale).sp
                                 )
                             }
                             if (config.showDate) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(Color(0x30FFFFFF))
+                                )
                                 Text(
-                                    text = dateString,
-                                    fontSize = 13.sp,
+                                    text = "$shortWeekday · $shortMonthDay",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Serif,
-                                    color = Color(config.accentColorHex)
+                                    color = accentColor
                                 )
                             }
                         }
-                    }
-                }
-                ClockStyle.DIGITAL -> {
-                    Column(horizontalAlignment = horizontalAlign) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFF09090B),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(config.accentColorHex).copy(alpha = 0.4f))
-                        ) {
+                        WidgetSizeCategory.MEDIUM -> {
                             Row(
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                                modifier = Modifier.fillMaxWidth().weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        text = "$hours:$minutes",
+                                        fontSize = (46 * fontScale).sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                        fontFamily = FontFamily.Serif,
+                                        color = accentColor
+                                    )
+                                    if (config.showSeconds) {
+                                        Text(
+                                            text = ".$seconds",
+                                            fontSize = (18 * fontScale).sp,
+                                            fontFamily = FontFamily.Serif,
+                                            color = subtleColor
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .height(44.dp)
+                                        .background(Color(0x35FFFFFF))
+                                )
+                                Spacer(modifier = Modifier.width(14.dp))
+
+                                Column(verticalArrangement = Arrangement.Center) {
+                                    if (config.showWeekday) {
+                                        Text(
+                                            text = weekdayString.uppercase(),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Serif,
+                                            letterSpacing = 1.sp,
+                                            color = subtleColor
+                                        )
+                                    }
+                                    if (config.showDate) {
+                                        Text(
+                                            text = shortMonthDay,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Serif,
+                                            color = accentColor
+                                        )
+                                    }
+                                    if (amPmString.isNotEmpty()) {
+                                        Text(
+                                            text = "$amPmString EDITION",
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Serif,
+                                            color = mutedColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        WidgetSizeCategory.LARGE -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = timeString,
-                                    fontSize = (42 * fontScaleFactor).sp,
+                                    text = "CHRONICLE · VOL. $year",
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = Color(config.accentColorHex)
+                                    fontFamily = FontFamily.Serif,
+                                    color = subtleColor
+                                )
+                                Text(
+                                    text = weekdayString.uppercase(),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Serif,
+                                    color = accentColor
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(Color(0x35FFFFFF))
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.Bottom,
+                                horizontalArrangement = if (config.alignment == "center") Arrangement.Center else Arrangement.Start
+                            ) {
+                                Text(
+                                    text = "$hours:$minutes",
+                                    fontSize = (58 * fontScale).sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                    fontFamily = FontFamily.Serif,
+                                    color = accentColor
+                                )
+                                if (config.showSeconds) {
+                                    Text(
+                                        text = ".$seconds",
+                                        fontSize = (22 * fontScale).sp,
+                                        fontFamily = FontFamily.Serif,
+                                        color = subtleColor
+                                    )
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(Color(0x35FFFFFF))
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "$dateString",
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Serif,
+                                    color = accentColor
                                 )
                                 if (amPmString.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = amPmString,
-                                        fontSize = 12.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = Color(config.accentColorHex).copy(alpha = 0.7f)
+                                        text = "$amPmString STANDARD",
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Serif,
+                                        color = subtleColor
                                     )
                                 }
                             }
                         }
-                        if (config.showDate) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "UTC+00:00 • $dateString".uppercase(),
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFF71717A)
-                            )
-                        }
                     }
                 }
-                ClockStyle.TERMINAL -> {
-                    Column(
+            }
+
+            ClockStyle.DIGITAL -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = horizontalAlign
+                ) {
+                    // Status row
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = horizontalAlign
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF10B981))
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "ACTIVE",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                color = Color(0xFF10B981)
+                            )
+                        }
                         Text(
-                            text = "$ sys.clock --live",
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color(0xFF71717A)
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "> $timeString ${if (amPmString.isNotEmpty()) "[$amPmString]" else ""}",
-                            fontSize = (36 * fontScaleFactor).sp,
+                            text = if (config.is24Hour) "24HR" else amPmString,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            color = Color(config.accentColorHex)
+                            color = Color(0xFF38BDF8)
                         )
-                        if (config.showDate) {
-                            Spacer(modifier = Modifier.height(4.dp))
+                    }
+
+                    // Monospace Time with Seconds Pill
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "$hours:$minutes",
+                            fontSize = when (sizeCategory) {
+                                WidgetSizeCategory.SMALL -> (30 * fontScale).sp
+                                WidgetSizeCategory.MEDIUM -> (42 * fontScale).sp
+                                WidgetSizeCategory.LARGE -> (54 * fontScale).sp
+                            },
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = accentColor
+                        )
+                        if (config.showSeconds) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.White.copy(alpha = 0.12f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = ":$seconds",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = accentColor
+                                )
+                            }
+                        }
+                    }
+
+                    // Divider
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color(0x3038BDF8))
+                    )
+
+                    // Footer
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = shortWeekday,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = subtleColor
+                        )
+                        Text(
+                            text = "[$isoDate]",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = subtleColor
+                        )
+                    }
+                }
+            }
+
+            ClockStyle.TERMINAL -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = horizontalAlign
+                ) {
+                    // Command Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF10B981))
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "  [${weekdayString.take(3).uppercase()} $dateString]",
-                                fontSize = 11.sp,
+                                text = "sys.clock",
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = subtleColor
+                            )
+                        }
+                        Text(
+                            text = "glance_v1.1",
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = mutedColor
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color(0x2510B981))
+                    )
+
+                    // CLI Output
+                    Column {
+                        Text(
+                            text = "$ read --current",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = subtleColor
+                        )
+                        Text(
+                            text = "> $timeString █",
+                            fontSize = when (sizeCategory) {
+                                WidgetSizeCategory.SMALL -> (20 * fontScale).sp
+                                WidgetSizeCategory.MEDIUM -> (28 * fontScale).sp
+                                WidgetSizeCategory.LARGE -> (38 * fontScale).sp
+                            },
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = accentColor
+                        )
+                    }
+
+                    if (sizeCategory != WidgetSizeCategory.SMALL) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(Color(0x2510B981))
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "  day: ${weekdayString.lowercase()}",
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = subtleColor
+                            )
+                            Text(
+                                text = "  iso: $isoDate",
+                                fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = Color(0xFF10B981)
                             )
                         }
                     }
                 }
-                ClockStyle.TYPOGRAPHIC -> {
-                    Column(horizontalAlignment = horizontalAlign) {
-                        Text(
-                            text = timeString,
-                            fontSize = (54 * fontScaleFactor).sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = chosenFontFamily,
-                            letterSpacing = (-2).sp,
-                            color = Color(config.accentColorHex)
-                        )
-                        if (config.showDate) {
-                            Text(
-                                text = "$weekdayString • $dateString",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFA1A1AA)
-                            )
-                        }
-                    }
-                }
-                ClockStyle.GLASS -> {
-                    Surface(
-                        shape = RoundedCornerShape(config.cornerRadiusDp.dp),
-                        color = Color(0xFF27272A).copy(alpha = 0.6f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                            horizontalAlignment = horizontalAlign
-                        ) {
-                            Text(
-                                text = timeString,
-                                fontSize = (42 * fontScaleFactor).sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(config.accentColorHex)
-                            )
-                            if (config.showDate) {
+            }
+
+            ClockStyle.TYPOGRAPHIC -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = horizontalAlign
+                ) {
+                    when (sizeCategory) {
+                        WidgetSizeCategory.SMALL -> {
+                            Column(horizontalAlignment = horizontalAlign) {
                                 Text(
-                                    text = "$weekdayString, $dateString",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFFA1A1AA)
+                                    text = hours,
+                                    fontSize = (38 * fontScale).sp,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = chosenFontFamily,
+                                    letterSpacing = (-2).sp,
+                                    color = accentColor,
+                                    lineHeight = (38 * fontScale).sp
+                                )
+                                Text(
+                                    text = minutes,
+                                    fontSize = (38 * fontScale).sp,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = chosenFontFamily,
+                                    letterSpacing = (-2).sp,
+                                    color = subtleColor,
+                                    lineHeight = (38 * fontScale).sp
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(accentColor.copy(alpha = 0.2f))
+                                    .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "$dayNum $shortMonth",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentColor
                                 )
                             }
                         }
+                        WidgetSizeCategory.MEDIUM -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "$hours : $minutes",
+                                    fontSize = (46 * fontScale).sp,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = chosenFontFamily,
+                                    letterSpacing = (-1.5).sp,
+                                    color = accentColor
+                                )
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(accentColor.copy(alpha = 0.2f))
+                                            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "$shortWeekday $dayNum",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = accentColor
+                                        )
+                                    }
+                                    if (config.showSeconds) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "$seconds SEC",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = subtleColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        WidgetSizeCategory.LARGE -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = shortWeekday,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = subtleColor
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(accentColor.copy(alpha = 0.2f))
+                                        .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                    Text(
+                                        text = "$dayNum $shortMonth",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = accentColor
+                                    )
+                                }
+                            }
+                            Column(horizontalAlignment = horizontalAlign) {
+                                Text(
+                                    text = hours,
+                                    fontSize = (60 * fontScale).sp,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = chosenFontFamily,
+                                    letterSpacing = (-3).sp,
+                                    color = accentColor,
+                                    lineHeight = (60 * fontScale).sp
+                                )
+                                Text(
+                                    text = minutes,
+                                    fontSize = (60 * fontScale).sp,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = chosenFontFamily,
+                                    letterSpacing = (-3).sp,
+                                    color = subtleColor,
+                                    lineHeight = (60 * fontScale).sp
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(Color(0x30FFFFFF))
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "LIVE TICK",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = mutedColor
+                                )
+                                if (config.showSeconds) {
+                                    Text(
+                                        text = ":$seconds",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = accentColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            ClockStyle.GLASS -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = horizontalAlign
+                ) {
+                    // Glowing indicator header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(accentColor)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = shortWeekday,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.sp,
+                                color = accentColor
+                            )
+                        }
+                        if (amPmString.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.White.copy(alpha = 0.12f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = amPmString,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentColor
+                                )
+                            }
+                        }
+                    }
+
+                    // Glass Time
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = "$hours:$minutes",
+                            fontSize = when (sizeCategory) {
+                                WidgetSizeCategory.SMALL -> (30 * fontScale).sp
+                                WidgetSizeCategory.MEDIUM -> (42 * fontScale).sp
+                                WidgetSizeCategory.LARGE -> (56 * fontScale).sp
+                            },
+                            fontWeight = FontWeight.Light,
+                            fontFamily = chosenFontFamily,
+                            color = accentColor
+                        )
+                        if (config.showSeconds) {
+                            Text(
+                                text = ":$seconds",
+                                fontSize = (16 * fontScale).sp,
+                                fontFamily = chosenFontFamily,
+                                color = subtleColor
+                            )
+                        }
+                    }
+
+                    // Glass Divider
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color(0x35FFFFFF))
+                    )
+
+                    // Footer
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = shortMonthDay,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = subtleColor
+                        )
+                        Text(
+                            text = year,
+                            fontSize = 11.sp,
+                            color = mutedColor
+                        )
                     }
                 }
             }

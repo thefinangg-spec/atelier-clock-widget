@@ -4,12 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.provider.AlarmClock
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
@@ -26,6 +28,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.atelier.clockwidget.R
 import com.atelier.clockwidget.model.ClockCustomization
 import com.atelier.clockwidget.model.ClockStyle
 import com.atelier.clockwidget.model.WidgetSizeCategory
@@ -49,12 +52,10 @@ class ClockGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
             val prefs = currentState<androidx.datastore.preferences.core.Preferences>()
-            // If the widget has explicit preferences set, use them; otherwise, fall back to global saved config
             val styleKey = prefs[com.atelier.clockwidget.data.ClockPreferencesKeys.STYLE_KEY]
             val config = if (styleKey != null) {
                 ClockCustomization.fromPreferences(prefs)
             } else {
-                // Read from global preferences synchronously
                 var loadedConfig = ClockCustomization()
                 try {
                     kotlinx.coroutines.runBlocking {
@@ -91,35 +92,48 @@ class ClockGlanceWidget : GlanceAppWidget() {
         sizeCategory: WidgetSizeCategory
     ) {
         val now = Date()
-        val openClockIntent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        val mainActivityIntent = Intent(context, com.atelier.clockwidget.MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
 
         val paddingDp = when (config.padding) {
             "compact" -> 10.dp
-            "generous" -> 20.dp
+            "generous" -> 18.dp
             else -> 14.dp
+        }
+
+        val fontScale = when (config.textSize) {
+            "compact" -> 0.85f
+            "large" -> 1.15f
+            else -> 1.0f
+        }
+
+        val bgModifier = when (config.backgroundStyle) {
+            "transparent" -> GlanceModifier.background(ColorProvider(Color.Transparent))
+            "solid" -> GlanceModifier.background(ImageProvider(R.drawable.glance_widget_solid_bg))
+            else -> when (config.style) {
+                ClockStyle.EDITORIAL -> GlanceModifier.background(ImageProvider(R.drawable.glance_widget_editorial_bg))
+                ClockStyle.TERMINAL -> GlanceModifier.background(ImageProvider(R.drawable.glance_widget_terminal_bg))
+                ClockStyle.DIGITAL -> GlanceModifier.background(ImageProvider(R.drawable.glance_widget_digital_bg))
+                ClockStyle.TYPOGRAPHIC -> GlanceModifier.background(ImageProvider(R.drawable.glance_widget_typographic_bg))
+                ClockStyle.GLASS -> GlanceModifier.background(ImageProvider(R.drawable.glance_widget_glass_bg))
+                ClockStyle.MINIMAL -> GlanceModifier.background(ImageProvider(R.drawable.glance_widget_minimal_bg))
+            }
         }
 
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .cornerRadius(config.cornerRadiusDp.dp)
-                .background(config.resolveBackgroundColor())
+                .then(bgModifier)
                 .padding(paddingDp)
                 .clickable(actionStartActivity<com.atelier.clockwidget.MainActivity>()),
             contentAlignment = config.resolveGlanceAlignment()
         ) {
             when (config.style) {
-                ClockStyle.MINIMAL -> MinimalClockLayout(now, config, sizeCategory)
-                ClockStyle.EDITORIAL -> EditorialClockLayout(now, config, sizeCategory)
-                ClockStyle.DIGITAL -> DigitalClockLayout(now, config, sizeCategory)
-                ClockStyle.TERMINAL -> TerminalClockLayout(now, config, sizeCategory)
-                ClockStyle.TYPOGRAPHIC -> TypographicClockLayout(now, config, sizeCategory)
-                ClockStyle.GLASS -> GlassClockLayout(now, config, sizeCategory)
+                ClockStyle.MINIMAL -> MinimalClockLayout(now, config, sizeCategory, fontScale)
+                ClockStyle.EDITORIAL -> EditorialClockLayout(now, config, sizeCategory, fontScale)
+                ClockStyle.DIGITAL -> DigitalClockLayout(now, config, sizeCategory, fontScale)
+                ClockStyle.TERMINAL -> TerminalClockLayout(now, config, sizeCategory, fontScale)
+                ClockStyle.TYPOGRAPHIC -> TypographicClockLayout(now, config, sizeCategory, fontScale)
+                ClockStyle.GLASS -> GlassClockLayout(now, config, sizeCategory, fontScale)
             }
         }
     }
@@ -128,56 +142,86 @@ class ClockGlanceWidget : GlanceAppWidget() {
     private fun MinimalClockLayout(
         date: Date,
         config: ClockCustomization,
-        sizeCategory: WidgetSizeCategory
+        sizeCategory: WidgetSizeCategory,
+        fontScale: Float
     ) {
-        val timePattern = if (config.is24Hour) {
-            if (config.showSeconds) "HH:mm:ss" else "HH:mm"
-        } else {
-            if (config.showSeconds) "h:mm:ss" else "h:mm"
+        val hAlign = when (config.alignment) {
+            "center" -> Alignment.Horizontal.CenterHorizontally
+            "right" -> Alignment.Horizontal.End
+            else -> Alignment.Horizontal.Start
         }
+        val timePattern = if (config.is24Hour) "HH:mm" else "h:mm"
         val timeString = SimpleDateFormat(timePattern, Locale.getDefault()).format(date)
+        val secondsString = SimpleDateFormat("ss", Locale.getDefault()).format(date)
         val amPmString = if (!config.is24Hour) SimpleDateFormat("a", Locale.getDefault()).format(date).uppercase() else ""
-        val dateString = SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(date)
+        val weekday = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
+        val monthDay = SimpleDateFormat("MMM d", Locale.getDefault()).format(date).uppercase()
 
-        val timeFontSize = when (sizeCategory) {
-            WidgetSizeCategory.SMALL -> 32.sp
-            WidgetSizeCategory.MEDIUM -> 44.sp
-            WidgetSizeCategory.LARGE -> 56.sp
+        val baseSize = when (sizeCategory) {
+            WidgetSizeCategory.SMALL -> (32 * fontScale).sp
+            WidgetSizeCategory.MEDIUM -> (46 * fontScale).sp
+            WidgetSizeCategory.LARGE -> (58 * fontScale).sp
         }
 
         Column(
             modifier = GlanceModifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Vertical.CenterVertically
+            horizontalAlignment = hAlign
         ) {
             Row(verticalAlignment = Alignment.Vertical.Bottom) {
                 Text(
                     text = timeString,
                     style = TextStyle(
                         color = ColorProvider(config.accentColor),
-                        fontSize = timeFontSize,
+                        fontSize = baseSize,
                         fontWeight = FontWeight.Normal
                     )
                 )
-                if (amPmString.isNotEmpty()) {
+                if (config.showSeconds) {
                     Spacer(modifier = GlanceModifier.width(4.dp))
+                    Text(
+                        text = ":$secondsString",
+                        style = TextStyle(
+                            color = ColorProvider(config.subtleTextColor),
+                            fontSize = (baseSize.value * 0.45f).sp,
+                            fontWeight = FontWeight.Normal
+                        )
+                    )
+                }
+                if (amPmString.isNotEmpty()) {
+                    Spacer(modifier = GlanceModifier.width(6.dp))
                     Text(
                         text = amPmString,
                         style = TextStyle(
                             color = ColorProvider(config.subtleTextColor),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     )
                 }
             }
-            if (config.showDate && sizeCategory != WidgetSizeCategory.SMALL) {
-                Spacer(modifier = GlanceModifier.height(4.dp))
+
+            if (config.showWeekday || config.showDate) {
+                Spacer(modifier = GlanceModifier.height(8.dp))
+                // Clean Divider Line
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(ColorProvider(Color(0x30FFFFFF)))
+                ) {}
+                Spacer(modifier = GlanceModifier.height(6.dp))
+
+                val dateText = when {
+                    config.showWeekday && config.showDate -> "$weekday / $monthDay"
+                    config.showWeekday -> weekday
+                    else -> monthDay
+                }
                 Text(
-                    text = dateString.uppercase(),
+                    text = dateText,
                     style = TextStyle(
                         color = ColorProvider(config.subtleTextColor),
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Normal
+                        fontWeight = FontWeight.Medium
                     )
                 )
             }
@@ -188,13 +232,19 @@ class ClockGlanceWidget : GlanceAppWidget() {
     private fun EditorialClockLayout(
         date: Date,
         config: ClockCustomization,
-        sizeCategory: WidgetSizeCategory
+        sizeCategory: WidgetSizeCategory,
+        fontScale: Float
     ) {
         val hourFormat = if (config.is24Hour) "HH" else "h"
         val hours = SimpleDateFormat(hourFormat, Locale.getDefault()).format(date)
         val minutes = SimpleDateFormat("mm", Locale.getDefault()).format(date)
+        val seconds = SimpleDateFormat("ss", Locale.getDefault()).format(date)
         val dayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(date)
+        val shortDay = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
         val monthDay = SimpleDateFormat("MMMM d", Locale.getDefault()).format(date)
+        val shortMonthDay = SimpleDateFormat("MMM d", Locale.getDefault()).format(date).uppercase()
+        val year = SimpleDateFormat("yyyy", Locale.getDefault()).format(date)
+        val amPm = if (!config.is24Hour) SimpleDateFormat("a", Locale.getDefault()).format(date).uppercase() else ""
 
         when (sizeCategory) {
             WidgetSizeCategory.SMALL -> {
@@ -203,7 +253,7 @@ class ClockGlanceWidget : GlanceAppWidget() {
                         text = hours,
                         style = TextStyle(
                             color = ColorProvider(config.accentColor),
-                            fontSize = 38.sp,
+                            fontSize = (38 * fontScale).sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Serif
                         )
@@ -212,8 +262,25 @@ class ClockGlanceWidget : GlanceAppWidget() {
                         text = minutes,
                         style = TextStyle(
                             color = ColorProvider(config.subtleTextColor),
-                            fontSize = 38.sp,
+                            fontSize = (38 * fontScale).sp,
                             fontWeight = FontWeight.Normal,
+                            fontFamily = FontFamily.Serif
+                        )
+                    )
+                    Spacer(modifier = GlanceModifier.height(6.dp))
+                    Box(
+                        modifier = GlanceModifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(ColorProvider(Color(0x30FFFFFF)))
+                    ) {}
+                    Spacer(modifier = GlanceModifier.height(4.dp))
+                    Text(
+                        text = "$shortDay · $shortMonthDay",
+                        style = TextStyle(
+                            color = ColorProvider(config.accentColor),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Serif
                         )
                     )
@@ -224,24 +291,48 @@ class ClockGlanceWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Vertical.CenterVertically
                 ) {
-                    Text(
-                        text = "$hours:$minutes",
-                        style = TextStyle(
-                            color = ColorProvider(config.accentColor),
-                            fontSize = 46.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif
+                    Row(verticalAlignment = Alignment.Vertical.Bottom) {
+                        Text(
+                            text = "$hours:$minutes",
+                            style = TextStyle(
+                                color = ColorProvider(config.accentColor),
+                                fontSize = (46 * fontScale).sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Serif
+                            )
                         )
-                    )
-                    Spacer(modifier = GlanceModifier.defaultWeight())
-                    Column(horizontalAlignment = Alignment.Horizontal.End) {
-                        if (config.showWeekday) {
+                        if (config.showSeconds) {
                             Text(
-                                text = dayName,
+                                text = ".$seconds",
                                 style = TextStyle(
                                     color = ColorProvider(config.subtleTextColor),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontSize = (20 * fontScale).sp,
+                                    fontWeight = FontWeight.Normal,
+                                    fontFamily = FontFamily.Serif
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = GlanceModifier.width(12.dp))
+                    // Vertical dividing line
+                    Box(
+                        modifier = GlanceModifier
+                            .width(1.dp)
+                            .height(44.dp)
+                            .background(ColorProvider(Color(0x30FFFFFF)))
+                    ) {}
+                    Spacer(modifier = GlanceModifier.width(12.dp))
+
+                    Column(horizontalAlignment = Alignment.Horizontal.Start) {
+                        if (config.showWeekday) {
+                            Text(
+                                text = dayName.uppercase(),
+                                style = TextStyle(
+                                    color = ColorProvider(config.subtleTextColor),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Serif
                                 )
                             )
                         }
@@ -250,7 +341,18 @@ class ClockGlanceWidget : GlanceAppWidget() {
                                 text = monthDay,
                                 style = TextStyle(
                                     color = ColorProvider(config.accentColor),
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Serif
+                                )
+                            )
+                        }
+                        if (amPm.isNotEmpty()) {
+                            Text(
+                                text = "$amPm EDITION",
+                                style = TextStyle(
+                                    color = ColorProvider(config.subtleTextColor),
+                                    fontSize = 10.sp,
                                     fontFamily = FontFamily.Serif
                                 )
                             )
@@ -260,33 +362,90 @@ class ClockGlanceWidget : GlanceAppWidget() {
             }
             WidgetSizeCategory.LARGE -> {
                 Column(modifier = GlanceModifier.fillMaxSize()) {
-                    if (config.showWeekday) {
+                    // Header Bar
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Vertical.CenterVertically
+                    ) {
                         Text(
-                            text = dayName.uppercase(),
+                            text = "CHRONICLE · VOL. $year",
                             style = TextStyle(
                                 color = ColorProvider(config.subtleTextColor),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Serif
                             )
                         )
+                        Spacer(modifier = GlanceModifier.defaultWeight())
+                        if (config.showWeekday) {
+                            Text(
+                                text = dayName.uppercase(),
+                                style = TextStyle(
+                                    color = ColorProvider(config.accentColor),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Serif
+                                )
+                            )
+                        }
                     }
                     Spacer(modifier = GlanceModifier.height(8.dp))
-                    Text(
-                        text = "$hours:$minutes",
-                        style = TextStyle(
-                            color = ColorProvider(config.accentColor),
-                            fontSize = 62.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif
-                        )
-                    )
-                    Spacer(modifier = GlanceModifier.defaultWeight())
-                    if (config.showDate) {
+                    Box(
+                        modifier = GlanceModifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(ColorProvider(Color(0x30FFFFFF)))
+                    ) {}
+                    Spacer(modifier = GlanceModifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.Vertical.Bottom) {
                         Text(
-                            text = monthDay,
+                            text = "$hours:$minutes",
+                            style = TextStyle(
+                                color = ColorProvider(config.accentColor),
+                                fontSize = (58 * fontScale).sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Serif
+                            )
+                        )
+                        if (config.showSeconds) {
+                            Text(
+                                text = ".$seconds",
+                                style = TextStyle(
+                                    color = ColorProvider(config.subtleTextColor),
+                                    fontSize = (24 * fontScale).sp,
+                                    fontFamily = FontFamily.Serif
+                                )
+                            )
+                        }
+                    }
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                    Box(
+                        modifier = GlanceModifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(ColorProvider(Color(0x30FFFFFF)))
+                    ) {}
+                    Spacer(modifier = GlanceModifier.height(8.dp))
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Vertical.CenterVertically
+                    ) {
+                        if (config.showDate) {
+                            Text(
+                                text = "$monthDay, $year",
+                                style = TextStyle(
+                                    color = ColorProvider(config.accentColor),
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Serif
+                                )
+                            )
+                        }
+                        Spacer(modifier = GlanceModifier.defaultWeight())
+                        Text(
+                            text = if (amPm.isNotEmpty()) "$amPm Standard" else "UTC Live",
                             style = TextStyle(
                                 color = ColorProvider(config.subtleTextColor),
-                                fontSize = 16.sp,
+                                fontSize = 11.sp,
                                 fontFamily = FontFamily.Serif
                             )
                         )
@@ -300,35 +459,103 @@ class ClockGlanceWidget : GlanceAppWidget() {
     private fun DigitalClockLayout(
         date: Date,
         config: ClockCustomization,
-        sizeCategory: WidgetSizeCategory
+        sizeCategory: WidgetSizeCategory,
+        fontScale: Float
     ) {
-        val timePattern = if (config.is24Hour) {
-            if (config.showSeconds) "HH:mm:ss" else "HH:mm"
-        } else {
-            if (config.showSeconds) "hh:mm:ss" else "hh:mm"
-        }
+        val timePattern = if (config.is24Hour) "HH:mm" else "hh:mm"
         val timeString = SimpleDateFormat(timePattern, Locale.getDefault()).format(date)
-        val amPm = SimpleDateFormat("a", Locale.getDefault()).format(date)
-        val dateString = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault()).format(date)
+        val secondsString = SimpleDateFormat("ss", Locale.getDefault()).format(date)
+        val amPm = if (!config.is24Hour) SimpleDateFormat("a", Locale.getDefault()).format(date).uppercase() else ""
+        val weekday = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
+        val isoDate = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault()).format(date)
 
-        Column(
-            modifier = GlanceModifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.Horizontal.CenterHorizontally
-        ) {
+        val baseSize = when (sizeCategory) {
+            WidgetSizeCategory.SMALL -> (28 * fontScale).sp
+            WidgetSizeCategory.MEDIUM -> (42 * fontScale).sp
+            WidgetSizeCategory.LARGE -> (54 * fontScale).sp
+        }
+
+        Column(modifier = GlanceModifier.fillMaxWidth()) {
+            // Header: Dot + ACTIVE | 24HR or AM/PM
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Vertical.CenterVertically
+            ) {
+                Text(
+                    text = "● ACTIVE",
+                    style = TextStyle(
+                        color = ColorProvider(Color(0xFF10B981)),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                )
+                Spacer(modifier = GlanceModifier.defaultWeight())
+                Text(
+                    text = if (config.is24Hour) "24HR" else amPm,
+                    style = TextStyle(
+                        color = ColorProvider(config.subtleTextColor),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                )
+            }
+
+            Spacer(modifier = GlanceModifier.height(4.dp))
+
+            // Middle Time Row + Seconds Badge
             Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
                 Text(
                     text = timeString,
                     style = TextStyle(
                         color = ColorProvider(config.accentColor),
-                        fontSize = if (sizeCategory == WidgetSizeCategory.SMALL) 28.sp else 40.sp,
+                        fontSize = baseSize,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
                 )
-                if (!config.is24Hour) {
+                if (config.showSeconds) {
                     Spacer(modifier = GlanceModifier.width(6.dp))
+                    Box(
+                        modifier = GlanceModifier
+                            .cornerRadius(6.dp)
+                            .background(ImageProvider(R.drawable.glance_badge_pill))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = ":$secondsString",
+                            style = TextStyle(
+                                color = ColorProvider(config.accentColor),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = GlanceModifier.height(6.dp))
+
+            // Divider Line
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ColorProvider(Color(0x30FFFFFF)))
+            ) {}
+
+            Spacer(modifier = GlanceModifier.height(4.dp))
+
+            // Bottom technical footer
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Vertical.CenterVertically
+            ) {
+                if (config.showWeekday) {
                     Text(
-                        text = amPm,
+                        text = weekday,
                         style = TextStyle(
                             color = ColorProvider(config.subtleTextColor),
                             fontSize = 11.sp,
@@ -337,17 +564,17 @@ class ClockGlanceWidget : GlanceAppWidget() {
                         )
                     )
                 }
-            }
-            if (config.showDate && sizeCategory != WidgetSizeCategory.SMALL) {
-                Spacer(modifier = GlanceModifier.height(6.dp))
-                Text(
-                    text = "[$dateString]",
-                    style = TextStyle(
-                        color = ColorProvider(config.subtleTextColor),
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace
+                Spacer(modifier = GlanceModifier.defaultWeight())
+                if (config.showDate) {
+                    Text(
+                        text = "[$isoDate]",
+                        style = TextStyle(
+                            color = ColorProvider(config.subtleTextColor),
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -356,47 +583,97 @@ class ClockGlanceWidget : GlanceAppWidget() {
     private fun TerminalClockLayout(
         date: Date,
         config: ClockCustomization,
-        sizeCategory: WidgetSizeCategory
+        sizeCategory: WidgetSizeCategory,
+        fontScale: Float
     ) {
-        val timeString = SimpleDateFormat(if (config.is24Hour) "HH:mm:ss" else "hh:mm:ss a", Locale.getDefault()).format(date)
-        val dateString = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
-        val zoneString = TimeZone.getDefault().id
+        val timeString = SimpleDateFormat(
+            if (config.is24Hour) {
+                if (config.showSeconds) "HH:mm:ss" else "HH:mm"
+            } else {
+                if (config.showSeconds) "hh:mm:ss a" else "hh:mm a"
+            },
+            Locale.getDefault()
+        ).format(date)
+        val isoDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
+        val weekday = SimpleDateFormat("EEEE", Locale.getDefault()).format(date).lowercase()
 
         Column(modifier = GlanceModifier.fillMaxWidth()) {
+            // Header
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Vertical.CenterVertically
+            ) {
+                Text(
+                    text = "● sys.clock",
+                    style = TextStyle(
+                        color = ColorProvider(Color(0xFF10B981)),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                )
+                Spacer(modifier = GlanceModifier.defaultWeight())
+                Text(
+                    text = "glance_v1.1",
+                    style = TextStyle(
+                        color = ColorProvider(config.subtleTextColor),
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                )
+            }
+
+            Spacer(modifier = GlanceModifier.height(4.dp))
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ColorProvider(Color(0x3510B981)))
+            ) {}
+            Spacer(modifier = GlanceModifier.height(4.dp))
+
             Text(
-                text = "$ sys.clock --live",
+                text = "$ read --current",
                 style = TextStyle(
                     color = ColorProvider(config.subtleTextColor),
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
             )
-            Spacer(modifier = GlanceModifier.height(4.dp))
+            Spacer(modifier = GlanceModifier.height(2.dp))
             Text(
-                text = "> $timeString",
+                text = "> $timeString █",
                 style = TextStyle(
                     color = ColorProvider(config.accentColor),
-                    fontSize = if (sizeCategory == WidgetSizeCategory.SMALL) 20.sp else 30.sp,
+                    fontSize = if (sizeCategory == WidgetSizeCategory.SMALL) (18 * fontScale).sp else (26 * fontScale).sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
                 )
             )
+
             if (sizeCategory != WidgetSizeCategory.SMALL) {
+                Spacer(modifier = GlanceModifier.height(6.dp))
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(ColorProvider(Color(0x25FFFFFF)))
+                ) {}
                 Spacer(modifier = GlanceModifier.height(4.dp))
                 Text(
-                    text = "  locale: $zoneString",
+                    text = "  day: $weekday",
                     style = TextStyle(
                         color = ColorProvider(config.subtleTextColor),
-                        fontSize = 10.sp,
+                        fontSize = 9.sp,
                         fontFamily = FontFamily.Monospace
                     )
                 )
                 if (config.showDate) {
                     Text(
-                        text = "  stamp : $dateString",
+                        text = "  iso: $isoDate",
                         style = TextStyle(
-                            color = ColorProvider(config.subtleTextColor),
-                            fontSize = 10.sp,
+                            color = ColorProvider(Color(0xFF10B981)),
+                            fontSize = 9.sp,
                             fontFamily = FontFamily.Monospace
                         )
                     )
@@ -409,44 +686,176 @@ class ClockGlanceWidget : GlanceAppWidget() {
     private fun TypographicClockLayout(
         date: Date,
         config: ClockCustomization,
-        sizeCategory: WidgetSizeCategory
+        sizeCategory: WidgetSizeCategory,
+        fontScale: Float
     ) {
         val hourFormat = if (config.is24Hour) "HH" else "h"
         val hours = SimpleDateFormat(hourFormat, Locale.getDefault()).format(date)
         val minutes = SimpleDateFormat("mm", Locale.getDefault()).format(date)
-        val dateString = SimpleDateFormat("dd MMM", Locale.getDefault()).format(date)
+        val seconds = SimpleDateFormat("ss", Locale.getDefault()).format(date)
+        val dayNum = SimpleDateFormat("dd", Locale.getDefault()).format(date)
+        val monthShort = SimpleDateFormat("MMM", Locale.getDefault()).format(date).uppercase()
+        val weekdayShort = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
 
-        Row(
-            modifier = GlanceModifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Vertical.CenterVertically
-        ) {
-            Text(
-                text = hours,
-                style = TextStyle(
-                    color = ColorProvider(config.accentColor),
-                    fontSize = if (sizeCategory == WidgetSizeCategory.SMALL) 40.sp else 58.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            )
-            Spacer(modifier = GlanceModifier.width(6.dp))
-            Column {
-                Text(
-                    text = minutes,
-                    style = TextStyle(
-                        color = ColorProvider(config.subtleTextColor),
-                        fontSize = if (sizeCategory == WidgetSizeCategory.SMALL) 26.sp else 38.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                )
-                if (config.showDate && sizeCategory != WidgetSizeCategory.SMALL) {
+        when (sizeCategory) {
+            WidgetSizeCategory.SMALL -> {
+                Column(modifier = GlanceModifier.fillMaxWidth()) {
                     Text(
-                        text = dateString,
+                        text = hours,
                         style = TextStyle(
                             color = ColorProvider(config.accentColor),
-                            fontSize = 12.sp,
+                            fontSize = (38 * fontScale).sp,
                             fontWeight = FontWeight.Bold
                         )
                     )
+                    Text(
+                        text = minutes,
+                        style = TextStyle(
+                            color = ColorProvider(config.subtleTextColor),
+                            fontSize = (38 * fontScale).sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Spacer(modifier = GlanceModifier.height(4.dp))
+                    Box(
+                        modifier = GlanceModifier
+                            .cornerRadius(8.dp)
+                            .background(ImageProvider(R.drawable.glance_badge_pill))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "$dayNum $monthShort",
+                            style = TextStyle(
+                                color = ColorProvider(config.accentColor),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+                }
+            }
+            WidgetSizeCategory.MEDIUM -> {
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Vertical.CenterVertically
+                ) {
+                    Text(
+                        text = "$hours : $minutes",
+                        style = TextStyle(
+                            color = ColorProvider(config.accentColor),
+                            fontSize = (44 * fontScale).sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                    Column(horizontalAlignment = Alignment.Horizontal.End) {
+                        Box(
+                            modifier = GlanceModifier
+                                .cornerRadius(8.dp)
+                                .background(ImageProvider(R.drawable.glance_badge_pill))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "$weekdayShort $dayNum",
+                                style = TextStyle(
+                                    color = ColorProvider(config.accentColor),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+                        if (config.showSeconds) {
+                            Spacer(modifier = GlanceModifier.height(4.dp))
+                            Text(
+                                text = "$seconds SEC",
+                                style = TextStyle(
+                                    color = ColorProvider(config.subtleTextColor),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+            WidgetSizeCategory.LARGE -> {
+                Column(modifier = GlanceModifier.fillMaxSize()) {
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Vertical.CenterVertically
+                    ) {
+                        Text(
+                            text = weekdayShort,
+                            style = TextStyle(
+                                color = ColorProvider(config.subtleTextColor),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                        Spacer(modifier = GlanceModifier.defaultWeight())
+                        Box(
+                            modifier = GlanceModifier
+                                .cornerRadius(8.dp)
+                                .background(ImageProvider(R.drawable.glance_badge_pill))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "$dayNum $monthShort",
+                                style = TextStyle(
+                                    color = ColorProvider(config.accentColor),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+                    }
+                    Spacer(modifier = GlanceModifier.height(8.dp))
+                    Text(
+                        text = hours,
+                        style = TextStyle(
+                            color = ColorProvider(config.accentColor),
+                            fontSize = (64 * fontScale).sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Text(
+                        text = minutes,
+                        style = TextStyle(
+                            color = ColorProvider(config.subtleTextColor),
+                            fontSize = (64 * fontScale).sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                    Box(
+                        modifier = GlanceModifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(ColorProvider(Color(0x30FFFFFF)))
+                    ) {}
+                    Spacer(modifier = GlanceModifier.height(4.dp))
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Vertical.CenterVertically
+                    ) {
+                        Text(
+                            text = "LIVE TICK",
+                            style = TextStyle(
+                                color = ColorProvider(config.subtleTextColor),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                        Spacer(modifier = GlanceModifier.defaultWeight())
+                        Text(
+                            text = ":$seconds",
+                            style = TextStyle(
+                                color = ColorProvider(config.accentColor),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -456,41 +865,112 @@ class ClockGlanceWidget : GlanceAppWidget() {
     private fun GlassClockLayout(
         date: Date,
         config: ClockCustomization,
-        sizeCategory: WidgetSizeCategory
+        sizeCategory: WidgetSizeCategory,
+        fontScale: Float
     ) {
         val timeFormat = if (config.is24Hour) "HH:mm" else "h:mm"
         val timeString = SimpleDateFormat(timeFormat, Locale.getDefault()).format(date)
-        val amPm = if (!config.is24Hour) SimpleDateFormat("a", Locale.getDefault()).format(date) else ""
-        val dayDate = SimpleDateFormat("EEE · d MMM", Locale.getDefault()).format(date)
+        val seconds = SimpleDateFormat("ss", Locale.getDefault()).format(date)
+        val amPm = if (!config.is24Hour) SimpleDateFormat("a", Locale.getDefault()).format(date).uppercase() else ""
+        val weekday = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
+        val monthDay = SimpleDateFormat("MMM d", Locale.getDefault()).format(date)
+        val year = SimpleDateFormat("yyyy", Locale.getDefault()).format(date)
 
-        Column(
-            modifier = GlanceModifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.Horizontal.CenterHorizontally
-        ) {
+        val baseSize = when (sizeCategory) {
+            WidgetSizeCategory.SMALL -> (32 * fontScale).sp
+            WidgetSizeCategory.MEDIUM -> (46 * fontScale).sp
+            WidgetSizeCategory.LARGE -> (58 * fontScale).sp
+        }
+
+        Column(modifier = GlanceModifier.fillMaxWidth()) {
+            // Glass Header Bar: Glowing Dot + Weekday | AM/PM Badge
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Vertical.CenterVertically
+            ) {
+                Text(
+                    text = "● $weekday",
+                    style = TextStyle(
+                        color = ColorProvider(config.accentColor),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Spacer(modifier = GlanceModifier.defaultWeight())
+                if (amPm.isNotEmpty()) {
+                    Box(
+                        modifier = GlanceModifier
+                            .cornerRadius(6.dp)
+                            .background(ImageProvider(R.drawable.glance_badge_pill))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = amPm,
+                            style = TextStyle(
+                                color = ColorProvider(config.accentColor),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = GlanceModifier.height(4.dp))
+
+            // Main Time Display
             Row(verticalAlignment = Alignment.Vertical.Bottom) {
                 Text(
                     text = timeString,
                     style = TextStyle(
                         color = ColorProvider(config.accentColor),
-                        fontSize = if (sizeCategory == WidgetSizeCategory.SMALL) 34.sp else 46.sp,
-                        fontWeight = FontWeight.Normal
+                        fontSize = baseSize,
+                        fontWeight = FontWeight.Light
                     )
                 )
-                if (amPm.isNotEmpty()) {
+                if (config.showSeconds) {
                     Spacer(modifier = GlanceModifier.width(4.dp))
                     Text(
-                        text = amPm,
+                        text = ":$seconds",
                         style = TextStyle(
                             color = ColorProvider(config.subtleTextColor),
-                            fontSize = 12.sp
+                            fontSize = (baseSize.value * 0.45f).sp,
+                            fontWeight = FontWeight.Normal
                         )
                     )
                 }
             }
-            if (config.showDate) {
-                Spacer(modifier = GlanceModifier.height(4.dp))
+
+            Spacer(modifier = GlanceModifier.height(8.dp))
+
+            // Divider Line
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ColorProvider(Color(0x30FFFFFF)))
+            ) {}
+
+            Spacer(modifier = GlanceModifier.height(4.dp))
+
+            // Bottom Split Row
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Vertical.CenterVertically
+            ) {
+                if (config.showDate) {
+                    Text(
+                        text = monthDay,
+                        style = TextStyle(
+                            color = ColorProvider(config.subtleTextColor),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+                }
+                Spacer(modifier = GlanceModifier.defaultWeight())
                 Text(
-                    text = dayDate,
+                    text = year,
                     style = TextStyle(
                         color = ColorProvider(config.subtleTextColor),
                         fontSize = 11.sp,
@@ -501,3 +981,4 @@ class ClockGlanceWidget : GlanceAppWidget() {
         }
     }
 }
+
